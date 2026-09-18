@@ -1,0 +1,6 @@
+{
+  "name": "TIMES Café Bar & Grill",
+  "description": "Application web pour TIMES Café Bar & Grill avec thème sombre premium, base de données Supabase et PostgreSQL, espace admin/cuisine sécurisé, paiements en FCFA et Mobile Money (FedaPay/KKiaPay), et conformité juridique complète.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
