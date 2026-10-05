@@ -103,7 +103,8 @@ export interface Product {
   image_url: string;
   is_available: boolean;
   options?: ProductOption[] | Record<string, unknown>[] | string[];
-  tag?: string;
+  tag?: string | string[];
+  tags?: string[];
 
   // 2. Alias de rétrocompatibilité (Garantit le bon fonctionnement immédiat des composants)
   nom: string;
@@ -111,6 +112,7 @@ export interface Product {
   categorie: ProductCategory | string;
   image: string;
   dispo: boolean;
+  disponible?: boolean;
 
   createdAt?: string;
   updatedAt?: string;
