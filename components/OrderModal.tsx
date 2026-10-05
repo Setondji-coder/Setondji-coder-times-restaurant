@@ -66,7 +66,7 @@ export function OrderModal({
   const [tableNumber, setTableNumber] = useState('Table 4');
   const [pickupTime, setPickupTime] = useState('Dès que possible (~15-20 min)');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryCity, setDeliveryCity] = useState('Paris 8ème');
+  const [deliveryCity, setDeliveryCity] = useState('Cotonou (Akpakpa / Centre-Ville / Cadjehoun)');
   const [deliveryNotes, setDeliveryNotes] = useState('');
 
   // Customer contact info
@@ -150,10 +150,13 @@ export function OrderModal({
         notes: notes.trim() || undefined,
         items: cart.map((c) => ({
           id: c.product.id || c.product.nom,
-          nom: c.product.nom,
-          prix: c.product.prix,
+          nom: c.product.name || c.product.nom,
+          name: c.product.name || c.product.nom,
+          prix: c.product.price !== undefined ? c.product.price : c.product.prix,
+          price: c.product.price !== undefined ? c.product.price : c.product.prix,
           quantity: c.quantity,
-          categorie: c.product.categorie,
+          categorie: c.product.category_id || c.product.categorie,
+          category_id: c.product.category_id || c.product.categorie,
         })),
         total: finalTotal,
         totalXof: paymentResult.amountFcfa,
