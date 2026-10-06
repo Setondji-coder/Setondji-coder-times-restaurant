@@ -5,12 +5,12 @@
 -- 1. Table des produits du menu (Structure officielle Supabase + compatibilité ascendante)
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id TEXT NOT NULL,
-  name TEXT NOT NULL,
+  category_id TEXT,
+  name TEXT,
   description TEXT,
-  price NUMERIC NOT NULL, -- Prix en FCFA
-  image_url TEXT NOT NULL,
-  is_available BOOLEAN NOT NULL DEFAULT true,
+  price NUMERIC, -- Prix en FCFA
+  image_url TEXT,
+  is_available BOOLEAN DEFAULT true,
   options JSONB NOT NULL DEFAULT '[]'::jsonb,
   tag TEXT,
   
@@ -41,33 +41,46 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS categorie TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS dispo BOOLEAN DEFAULT true;
 
+-- Assouplissement des contraintes NOT NULL pour permettre l'insertion via les colonnes FR ou EN
+DO $$
+BEGIN
+  ALTER TABLE public.products ALTER COLUMN category_id DROP NOT NULL;
+  ALTER TABLE public.products ALTER COLUMN name DROP NOT NULL;
+  ALTER TABLE public.products ALTER COLUMN price DROP NOT NULL;
+  ALTER TABLE public.products ALTER COLUMN image_url DROP NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- Assouplissement des contraintes et harmonisation des types (conversion explicite vers TEXT)
-ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_categorie_check;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_id_fkey CASCADE;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_fkey CASCADE;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_categorie_check CASCADE;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_id_check CASCADE;
 
 DO $$
 BEGIN
   -- Convertit category_id et categorie en TEXT au cas où l'un d'eux était créé en UUID dans Supabase
   BEGIN
-    ALTER TABLE public.products ALTER COLUMN category_id TYPE TEXT USING category_id::text;
+    ALTER TABLE public.products ALTER COLUMN category_id TYPE TEXT USING CAST(category_id AS text);
   EXCEPTION WHEN OTHERS THEN NULL;
   END;
 
   BEGIN
-    ALTER TABLE public.products ALTER COLUMN categorie TYPE TEXT USING categorie::text;
+    ALTER TABLE public.products ALTER COLUMN categorie TYPE TEXT USING CAST(categorie AS text);
   EXCEPTION WHEN OTHERS THEN NULL;
   END;
 END $$;
 
--- Synchronisation immédiate des colonnes avec cast explicite pour éviter l'erreur 42804 (UUID vs TEXT)
+-- Synchronisation immédiate des colonnes avec CAST standard pour éviter toute erreur de syntaxe ou de type
 UPDATE public.products SET
-  name = COALESCE(name::text, nom::text),
-  nom = COALESCE(nom::text, name::text),
+  name = COALESCE(CAST(name AS text), CAST(nom AS text)),
+  nom = COALESCE(CAST(nom AS text), CAST(name AS text)),
   price = COALESCE(price, prix),
   prix = COALESCE(prix, price),
-  category_id = COALESCE(category_id::text, categorie::text),
-  categorie = COALESCE(categorie::text, category_id::text),
-  image_url = COALESCE(image_url::text, image::text),
-  image = COALESCE(image::text, image_url::text),
+  category_id = COALESCE(CAST(category_id AS text), CAST(categorie AS text)),
+  categorie = COALESCE(CAST(categorie AS text), CAST(category_id AS text)),
+  image_url = COALESCE(CAST(image_url AS text), CAST(image AS text)),
+  image = COALESCE(CAST(image AS text), CAST(image_url AS text)),
   is_available = COALESCE(is_available, dispo, true),
   dispo = COALESCE(dispo, is_available, true),
   options = COALESCE(options, '[]'::jsonb);
@@ -77,9 +90,9 @@ CREATE OR REPLACE FUNCTION public.sync_product_fields_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.name IS NOT NULL AND NEW.nom IS NULL THEN
-    NEW.nom := NEW.name::text;
+    NEW.nom := CAST(NEW.name AS text);
   ELSIF NEW.nom IS NOT NULL AND NEW.name IS NULL THEN
-    NEW.name := NEW.nom::text;
+    NEW.name := CAST(NEW.nom AS text);
   END IF;
 
   IF NEW.price IS NOT NULL AND NEW.prix IS NULL THEN
@@ -89,15 +102,15 @@ BEGIN
   END IF;
 
   IF NEW.category_id IS NOT NULL AND NEW.categorie IS NULL THEN
-    NEW.categorie := NEW.category_id::text;
+    NEW.categorie := CAST(NEW.category_id AS text);
   ELSIF NEW.categorie IS NOT NULL AND NEW.category_id IS NULL THEN
-    NEW.category_id := NEW.categorie::text;
+    NEW.category_id := CAST(NEW.categorie AS text);
   END IF;
 
   IF NEW.image_url IS NOT NULL AND NEW.image IS NULL THEN
-    NEW.image := NEW.image_url::text;
+    NEW.image := CAST(NEW.image_url AS text);
   ELSIF NEW.image IS NOT NULL AND NEW.image_url IS NULL THEN
-    NEW.image_url := NEW.image::text;
+    NEW.image_url := CAST(NEW.image AS text);
   END IF;
 
   IF NEW.is_available IS NOT NULL AND NEW.dispo IS NULL THEN
@@ -118,6 +131,10 @@ DROP TRIGGER IF EXISTS trg_sync_product_fields ON public.products;
 CREATE TRIGGER trg_sync_product_fields
 BEFORE INSERT OR UPDATE ON public.products
 FOR EACH ROW EXECUTE FUNCTION public.sync_product_fields_trigger();
+
+-- Dédoublonnage préventif par sécurité avant la création de l'index unique
+DELETE FROM public.products a USING public.products b
+WHERE a.id < b.id AND a.nom IS NOT NULL AND a.nom = b.nom;
 
 -- Index uniques pour garantir l'unicité et les performances
 CREATE UNIQUE INDEX IF NOT EXISTS products_nom_idx ON public.products (nom);
@@ -463,14 +480,14 @@ VALUES
   ('Cognac Rémy Martin VSOP (verre)', 8500, 'boissons-alcoolisees', 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=600&auto=format&fit=crop&q=80', true, 'Cognac Fine Champagne équilibré aux arômes de vanille et d’abricot mûr.', NULL),
   ('Get 27 (verre)', 4000, 'boissons-alcoolisees', 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=600&auto=format&fit=crop&q=80', true, 'Liqueur de menthe poivrée intense servie sur lit de glace pilée.', NULL)
 ON CONFLICT (nom) DO UPDATE SET
-  name = COALESCE(EXCLUDED.name::text, EXCLUDED.nom::text),
-  nom = COALESCE(EXCLUDED.nom::text, EXCLUDED.name::text),
+  name = COALESCE(CAST(EXCLUDED.name AS text), CAST(EXCLUDED.nom AS text)),
+  nom = COALESCE(CAST(EXCLUDED.nom AS text), CAST(EXCLUDED.name AS text)),
   price = COALESCE(EXCLUDED.price, EXCLUDED.prix),
   prix = COALESCE(EXCLUDED.prix, EXCLUDED.price),
-  category_id = COALESCE(EXCLUDED.category_id::text, EXCLUDED.categorie::text),
-  categorie = COALESCE(EXCLUDED.categorie::text, EXCLUDED.category_id::text),
-  image_url = COALESCE(EXCLUDED.image_url::text, EXCLUDED.image::text),
-  image = COALESCE(EXCLUDED.image::text, EXCLUDED.image_url::text),
+  category_id = COALESCE(CAST(EXCLUDED.category_id AS text), CAST(EXCLUDED.categorie AS text)),
+  categorie = COALESCE(CAST(EXCLUDED.categorie AS text), CAST(EXCLUDED.category_id AS text)),
+  image_url = COALESCE(CAST(EXCLUDED.image_url AS text), CAST(EXCLUDED.image AS text)),
+  image = COALESCE(CAST(EXCLUDED.image AS text), CAST(EXCLUDED.image_url AS text)),
   is_available = COALESCE(EXCLUDED.is_available, EXCLUDED.dispo, true),
   dispo = COALESCE(EXCLUDED.dispo, EXCLUDED.is_available, true),
   description = EXCLUDED.description,
