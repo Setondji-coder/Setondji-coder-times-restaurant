@@ -10,6 +10,7 @@ import {
   Order,
   EstablishmentSettings,
   User,
+  GASTRONOMIC_CATEGORIES,
 } from '@/lib/supabase';
 import {
   subscribeToProducts,
@@ -231,7 +232,7 @@ export default function AdminPage() {
       setSeedingLoading(true);
       const count = await seedInitialProductsIfEmpty();
       if (count > 0) {
-        setActionNotice(`${count} articles ont été initialisés dans la base Firestore.`);
+        setActionNotice(`${count} articles ont été initialisés dans la base Supabase.`);
       } else {
         setActionNotice('La base de données contient déjà des articles.');
       }
@@ -248,9 +249,12 @@ export default function AdminPage() {
     const matchCat = selectedCategory === 'all' || p.categorie === selectedCategory;
     const matchSearch =
       searchQuery === '' ||
-      p.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.tag && p.tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      String(p.nom || p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description && String(p.description).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.tag &&
+        (Array.isArray(p.tag)
+          ? p.tag.some((t: string) => String(t).toLowerCase().includes(searchQuery.toLowerCase()))
+          : String(p.tag).toLowerCase().includes(searchQuery.toLowerCase())));
     return matchCat && matchSearch;
   });
 
@@ -395,7 +399,7 @@ export default function AdminPage() {
 
         {/* Footer brand */}
         <div className="text-center text-xs text-zinc-600 mt-8">
-          TIMES Café Bar & Grill • Base de Données Firestore Sécurisée
+          TIMES Café Bar & Grill • Base de Données Supabase Sécurisée
         </div>
       </div>
     );
@@ -604,7 +608,7 @@ export default function AdminPage() {
               <div className="rounded-2xl bg-[#121216] border border-white/10 p-4">
                 <div className="text-xs text-zinc-400">Total Articles</div>
                 <div className="font-serif text-2xl font-bold text-white mt-1">{totalCount}</div>
-                <div className="text-[11px] text-zinc-500 mt-0.5">Dans la base Firestore</div>
+                <div className="text-[11px] text-zinc-500 mt-0.5">Dans la base Supabase</div>
               </div>
 
               <div className="rounded-2xl bg-[#121216] border border-emerald-500/20 p-4">
@@ -629,7 +633,7 @@ export default function AdminPage() {
             {/* Filter and Search Bar */}
             <div className="rounded-2xl bg-[#121216] border border-white/10 p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
               {/* Category pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-thin">
                 <button
                   onClick={() => setSelectedCategory('all')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
@@ -640,50 +644,26 @@ export default function AdminPage() {
                 >
                   Tous ({products.length})
                 </button>
-                <button
-                  onClick={() => setSelectedCategory('cafe')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-                    selectedCategory === 'cafe'
-                      ? 'bg-[#7D0A1C] text-white font-semibold'
-                      : 'bg-white/5 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <Coffee className="h-3 w-3 text-[#D4AF37]" />
-                  Café ({products.filter((p) => p.categorie === 'cafe').length})
-                </button>
-                <button
-                  onClick={() => setSelectedCategory('bar')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-                    selectedCategory === 'bar'
-                      ? 'bg-[#7D0A1C] text-white font-semibold'
-                      : 'bg-white/5 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <Wine className="h-3 w-3 text-[#D4AF37]" />
-                  Bar ({products.filter((p) => p.categorie === 'bar').length})
-                </button>
-                <button
-                  onClick={() => setSelectedCategory('grill')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-                    selectedCategory === 'grill'
-                      ? 'bg-[#7D0A1C] text-white font-semibold'
-                      : 'bg-white/5 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <Flame className="h-3 w-3 text-[#D4AF37]" />
-                  Grill ({products.filter((p) => p.categorie === 'grill').length})
-                </button>
-                <button
-                  onClick={() => setSelectedCategory('dessert')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-                    selectedCategory === 'dessert'
-                      ? 'bg-[#7D0A1C] text-white font-semibold'
-                      : 'bg-white/5 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <Sparkles className="h-3 w-3 text-[#D4AF37]" />
-                  Desserts ({products.filter((p) => p.categorie === 'dessert').length})
-                </button>
+                {GASTRONOMIC_CATEGORIES.map((cat) => {
+                  const count = products.filter((p) => p.categorie === cat.id).length;
+                  if (count === 0 && selectedCategory !== cat.id) return null;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                        selectedCategory === cat.id
+                          ? 'bg-[#7D0A1C] text-white font-semibold'
+                          : 'bg-white/5 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <span>{cat.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono text-zinc-300">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search field */}
@@ -708,7 +688,7 @@ export default function AdminPage() {
                 <h4 className="font-serif text-lg font-bold text-white">Aucun article trouvé</h4>
                 <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
                   {products.length === 0
-                    ? 'Votre table Firestore « Produits » est vide. Vous pouvez ajouter un article manuellement ou initialiser la carte par défaut.'
+                    ? 'Votre table Supabase « products » est vide. Vous pouvez ajouter un article manuellement ou initialiser la carte par défaut.'
                     : 'Aucun produit ne correspond à vos filtres actuels.'}
                 </p>
                 {products.length === 0 && (
@@ -754,7 +734,7 @@ export default function AdminPage() {
                                   <span>{prod.nom}</span>
                                   {prod.tag && (
                                     <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
-                                      {prod.tag}
+                                      {Array.isArray(prod.tag) ? prod.tag.join(', ') : prod.tag}
                                     </span>
                                   )}
                                 </div>
@@ -766,12 +746,11 @@ export default function AdminPage() {
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <span className="capitalize text-zinc-300 inline-flex items-center gap-1.5">
-                              {prod.categorie === 'cafe' && <Coffee className="h-3.5 w-3.5 text-[#D4AF37]" />}
-                              {prod.categorie === 'bar' && <Wine className="h-3.5 w-3.5 text-[#D4AF37]" />}
-                              {prod.categorie === 'grill' && <Flame className="h-3.5 w-3.5 text-[#D4AF37]" />}
-                              {prod.categorie === 'dessert' && <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" />}
-                              <span>{prod.categorie}</span>
+                            <span className="text-zinc-300 inline-flex items-center gap-1.5 text-xs font-medium">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37]" />
+                              <span>
+                                {GASTRONOMIC_CATEGORIES.find((c) => c.id === prod.categorie)?.label || prod.categorie}
+                              </span>
                             </span>
                           </td>
 
@@ -898,7 +877,7 @@ export default function AdminPage() {
               </div>
 
               <div className="text-xs text-zinc-400">
-                Table Firestore « Commandes » synchronisée en direct
+                Table Supabase « orders » synchronisée en direct
               </div>
             </div>
 
@@ -1023,18 +1002,22 @@ export default function AdminPage() {
                         Articles commandés :
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {ord.items.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="inline-flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-3 py-1.5 text-xs"
-                          >
-                            <span className="font-bold text-[#D4AF37] font-mono">x{item.quantity}</span>
-                            <span className="text-zinc-200">{item.nom}</span>
-                            <span className="text-zinc-400 font-mono text-[11px]">
-                              ({new Intl.NumberFormat('fr-FR').format(Math.round(item.prix * item.quantity))} FCFA)
-                            </span>
-                          </div>
-                        ))}
+                        {ord.items.map((item, idx) => {
+                          const itemName = item.name || item.nom || 'Article';
+                          const unitPrice = item.price !== undefined ? item.price : (item.prix || 0);
+                          return (
+                            <div
+                              key={idx}
+                              className="inline-flex items-center gap-2 rounded-lg bg-black/40 border border-white/10 px-3 py-1.5 text-xs"
+                            >
+                              <span className="font-bold text-[#D4AF37] font-mono">x{item.quantity}</span>
+                              <span className="text-zinc-200">{itemName}</span>
+                              <span className="text-zinc-400 font-mono text-[11px]">
+                                ({new Intl.NumberFormat('fr-FR').format(Math.round(unitPrice * item.quantity))} FCFA)
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
 
                       {ord.notes && (
