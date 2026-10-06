@@ -20,11 +20,45 @@ import {
   Clock,
   Eye,
   ChefHat,
+  Salad,
+  Soup,
+  Pizza,
+  Sandwich,
+  Drumstick,
+  Fish,
+  Globe,
+  Layers,
+  CupSoda,
+  Wine,
 } from 'lucide-react';
 import Link from 'next/link';
 
+export const CATEGORY_LABELS: Record<string, string> = {
+  'petit-dejeuner': 'Petit-Déjeuner',
+  'entrees-salades': 'Entrées & Salades',
+  'soupes-potages': 'Soupes & Potages',
+  'pizzas': 'Pizzas',
+  'pastas': 'Pastas',
+  'burgers-sandwichs': 'Burgers & Sandwichs',
+  'specialites-libanaises': 'Spécialités Libanaises',
+  'viandes-rouges': 'Viandes Rouges',
+  'poulets': 'Poulets',
+  'poissons-crustaces': 'Poissons & Crustacés',
+  'specialites-africaines': 'Spécialités Africaines',
+  'specialites-chinoises': 'Spécialités Chinoises',
+  'accompagnements': 'Accompagnements',
+  'desserts': 'Desserts',
+  'boissons-non-alcoolisees': 'Boissons Sans Alcool',
+  'boissons-alcoolisees': 'Boissons Alcoolisées',
+  'cafe': 'Côté Café',
+  'bar': 'Côté Bar',
+  'grill': 'Côté Grill',
+  'dessert': 'Desserts',
+};
+
 export function MenuSection() {
-  const [activeCategory, setActiveCategory] = useState<'all' | 'cafe' | 'bar' | 'grill' | 'dessert'>('all');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('all-plats');
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -57,22 +91,111 @@ export function MenuSection() {
     return () => unsubscribe();
   }, []);
 
-  const categories = [
+  // Top-level gastronomic courses (Strict universal order)
+  const GASTRONOMIC_GROUPS = [
     { id: 'all', label: 'Toute la Carte', icon: UtensilsCrossed },
-    { id: 'cafe', label: 'Côté Café', icon: Coffee },
-    { id: 'bar', label: 'Côté Bar & Cocktails', icon: GlassWater },
-    { id: 'grill', label: 'Côté Grill & Plats', icon: Flame },
-    { id: 'dessert', label: 'Desserts & Douceurs', icon: CakeSlice },
+    { id: 'petit-dejeuner', label: 'Petit-Déjeuner', icon: Coffee },
+    { id: 'entrees-salades', label: 'Entrées & Salades', icon: Salad },
+    { id: 'soupes-potages', label: 'Soupes & Potages', icon: Soup },
+    { id: 'plats-principaux', label: 'Plats Principaux', icon: Flame, isGroup: true },
+    { id: 'accompagnements', label: 'Accompagnements', icon: Layers },
+    { id: 'desserts', label: 'Desserts', icon: CakeSlice },
+    { id: 'boissons-non-alcoolisees', label: 'Boissons Sans Alcool', icon: CupSoda },
+    { id: 'boissons-alcoolisees', label: 'Boissons Alcoolisées', icon: Wine },
   ];
+
+  // Sub-categories under Plats Principaux
+  const MAIN_DISH_SUBCATEGORIES = [
+    { id: 'all-plats', label: 'Tous les Plats', icon: UtensilsCrossed },
+    { id: 'pizzas', label: 'Pizzas', icon: Pizza },
+    { id: 'pastas', label: 'Pastas', icon: UtensilsCrossed },
+    { id: 'burgers-sandwichs', label: 'Burgers & Sandwichs', icon: Sandwich },
+    { id: 'specialites-libanaises', label: 'Spécialités Libanaises', icon: Sparkles },
+    { id: 'viandes-rouges', label: 'Viandes Rouges', icon: Flame },
+    { id: 'poulets', label: 'Poulets', icon: Drumstick },
+    { id: 'poissons-crustaces', label: 'Poissons & Crustacés', icon: Fish },
+    { id: 'specialites-africaines', label: 'Spécialités Africaines', icon: Globe },
+    { id: 'specialites-chinoises', label: 'Spécialités Chinoises', icon: ChefHat },
+  ];
+
+  const isItemInActiveCategory = (itemCategory: string) => {
+    if (activeCategory === 'all') return true;
+    if (activeCategory === 'plats-principaux') {
+      if (activeSubCategory !== 'all-plats') {
+        return itemCategory === activeSubCategory;
+      }
+      return [
+        'pizzas',
+        'pastas',
+        'burgers-sandwichs',
+        'specialites-libanaises',
+        'viandes-rouges',
+        'poulets',
+        'poissons-crustaces',
+        'specialites-africaines',
+        'specialites-chinoises',
+        'grill',
+      ].includes(itemCategory);
+    }
+    if (activeCategory === 'petit-dejeuner') {
+      return itemCategory === 'petit-dejeuner' || itemCategory === 'cafe';
+    }
+    if (activeCategory === 'desserts') {
+      return itemCategory === 'desserts' || itemCategory === 'dessert';
+    }
+    if (activeCategory === 'boissons-non-alcoolisees') {
+      return itemCategory === 'boissons-non-alcoolisees';
+    }
+    if (activeCategory === 'boissons-alcoolisees') {
+      return itemCategory === 'boissons-alcoolisees' || itemCategory === 'bar';
+    }
+    return itemCategory === activeCategory;
+  };
+
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === 'all') return products.length;
+    if (categoryId === 'plats-principaux') {
+      return products.filter((p) =>
+        [
+          'pizzas',
+          'pastas',
+          'burgers-sandwichs',
+          'specialites-libanaises',
+          'viandes-rouges',
+          'poulets',
+          'poissons-crustaces',
+          'specialites-africaines',
+          'specialites-chinoises',
+          'grill',
+        ].includes(p.categorie)
+      ).length;
+    }
+    if (categoryId === 'petit-dejeuner') {
+      return products.filter((p) => p.categorie === 'petit-dejeuner' || p.categorie === 'cafe').length;
+    }
+    if (categoryId === 'desserts') {
+      return products.filter((p) => p.categorie === 'desserts' || p.categorie === 'dessert').length;
+    }
+    if (categoryId === 'boissons-non-alcoolisees') {
+      return products.filter((p) => p.categorie === 'boissons-non-alcoolisees').length;
+    }
+    if (categoryId === 'boissons-alcoolisees') {
+      return products.filter((p) => p.categorie === 'boissons-alcoolisees' || p.categorie === 'bar').length;
+    }
+    return products.filter((p) => p.categorie === categoryId).length;
+  };
 
   // Filtering by category and search
   const filteredItems = products.filter((item) => {
-    const matchCategory = activeCategory === 'all' || item.categorie === activeCategory;
+    const matchCategory = isItemInActiveCategory(item.categorie);
     const matchSearch =
       searchQuery.trim() === '' ||
-      item.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.tag && item.tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      String(item.nom || item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.description && String(item.description).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.tag &&
+        (Array.isArray(item.tag)
+          ? item.tag.some((t: string) => String(t).toLowerCase().includes(searchQuery.toLowerCase()))
+          : String(item.tag).toLowerCase().includes(searchQuery.toLowerCase())));
     return matchCategory && matchSearch;
   });
 
@@ -222,27 +345,30 @@ export function MenuSection() {
             )}
           </div>
 
-          {/* Category Filters */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-            {categories.map((cat) => {
+          {/* Universal Gastronomic Course Filters */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
+            {GASTRONOMIC_GROUPS.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.id;
-              const count = cat.id === 'all'
-                ? products.length
-                : products.filter((p) => p.categorie === cat.id).length;
+              const count = getCategoryCount(cat.id);
 
               return (
                 <button
                   key={cat.id}
                   id={`tab-menu-${cat.id}`}
-                  onClick={() => setActiveCategory(cat.id as typeof activeCategory)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
+                  onClick={() => {
+                    setActiveCategory(cat.id);
+                    if (cat.id !== 'plats-principaux') {
+                      setActiveSubCategory('all-plats');
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-[#7D0A1C] text-white shadow-lg shadow-[#7D0A1C]/30 border border-[#9E1B32]'
                       : 'bg-[#141418] text-zinc-300 hover:text-white border border-white/10 hover:border-[#D4AF37]/40'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-[#D4AF37]' : 'text-zinc-400'}`} />
+                  <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? 'text-[#D4AF37]' : 'text-zinc-400'}`} />
                   <span>{cat.label}</span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 font-mono text-zinc-400">
                     {count}
@@ -251,6 +377,39 @@ export function MenuSection() {
               );
             })}
           </div>
+
+          {/* Sub-categories for Plats Principaux */}
+          {activeCategory === 'plats-principaux' && (
+            <div className="pt-2 pb-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 border-t border-white/5">
+              <span className="text-[11px] text-zinc-400 font-semibold mr-1 flex items-center gap-1">
+                <ChefHat className="h-3 w-3 text-[#D4AF37]" />
+                Spécialités :
+              </span>
+              {MAIN_DISH_SUBCATEGORIES.map((sub) => {
+                const isSubActive = activeSubCategory === sub.id;
+                const subCount = sub.id === 'all-plats'
+                  ? getCategoryCount('plats-principaux')
+                  : products.filter((p) => p.categorie === sub.id).length;
+
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setActiveSubCategory(sub.id)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors ${
+                      isSubActive
+                        ? 'bg-[#D4AF37] text-black font-bold shadow-sm'
+                        : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{sub.label}</span>
+                    <span className={`text-[9px] px-1 py-0.1 rounded font-mono ${isSubActive ? 'bg-black/20 text-black' : 'bg-black/40 text-zinc-400'}`}>
+                      {subCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Menu Items Grid */}
@@ -311,13 +470,18 @@ export function MenuSection() {
                     {/* Item Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="font-serif text-base sm:text-lg font-bold text-white group-hover:text-[#D4AF37] transition-colors leading-snug">
                             {item.nom}
                           </h3>
+                          {CATEGORY_LABELS[item.categorie] && (
+                            <span className="inline-block rounded-md bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-medium text-zinc-400">
+                              {CATEGORY_LABELS[item.categorie]}
+                            </span>
+                          )}
                           {item.tag && (
                             <span className="inline-block rounded-full bg-[#7D0A1C]/30 border border-[#7D0A1C] px-2 py-0.5 text-[9px] font-semibold text-[#D4AF37]">
-                              {item.tag}
+                              {Array.isArray(item.tag) ? item.tag.join(', ') : item.tag}
                             </span>
                           )}
                         </div>
@@ -331,6 +495,25 @@ export function MenuSection() {
                       <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">
                         {item.description || 'Préparation fraîche et recettes signatures TIMES.'}
                       </p>
+
+                      {/* Options & Suppléments disponibles */}
+                      {item.options && Array.isArray(item.options) && item.options.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {item.options.slice(0, 3).map((opt, oIdx) => (
+                            <span
+                              key={oIdx}
+                              className="rounded bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/25 px-1.5 py-0.5 text-[9px] font-medium"
+                            >
+                              {typeof opt === 'string' ? opt : (opt as { name?: string }).name || 'Option'}
+                            </span>
+                          ))}
+                          {item.options.length > 3 && (
+                            <span className="text-[9px] text-zinc-500 self-center">
+                              +{item.options.length - 3} options
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
